@@ -742,7 +742,7 @@
 
         clearAllDataFills(fellowshipSheet, fellowshipHeaders.headerRow);
         for (const index of masterIndexes.values()) {
-          clearManagedHighlights(index.sheet, index.headerRow);
+          clearAllDataFills(index.sheet, index.headerRow);
         }
 
         for (let rowNumber = fellowshipHeaders.headerRow + 1; rowNumber <= fellowshipSheet.rowCount; rowNumber += 1) {
@@ -782,7 +782,7 @@
         for (const [amount, rowNumbers] of masterRowsToHighlight.entries()) {
           const index = masterIndexes.get(amount);
           if (!index) continue;
-          rowNumbers.forEach((rowNumber) => fillRow(index.sheet, rowNumber, fills.yellow));
+          rowNumbers.forEach((rowNumber) => fillRow(index.sheet, rowNumber, fills.yellow, index.highlightWidth));
         }
 
         const summaryWorkbook = createSummaryWorkbook(records, amountToSheet);
@@ -933,7 +933,12 @@
             if (!rowsByKey.has(key)) rowsByKey.set(key, []);
             rowsByKey.get(key).push(rowNumber);
           }
-          indexes.set(amount, { sheet, rowsByKey, headerRow: headerInfo.headerRow });
+          indexes.set(amount, {
+            sheet,
+            rowsByKey,
+            headerRow: headerInfo.headerRow,
+            highlightWidth: lastMeaningfulColumn(sheet, headerInfo.headerRow),
+          });
         }
         return indexes;
       }
