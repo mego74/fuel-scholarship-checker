@@ -739,6 +739,11 @@
         const records = [];
         const masterRowsToHighlight = new Map([...amountToSheet.keys()].map((amount) => [amount, new Set()]));
 
+        clearManagedHighlights(fellowshipSheet, fellowshipHeaders.headerRow);
+        for (const index of masterIndexes.values()) {
+          clearManagedHighlights(index.sheet, index.headerRow);
+        }
+
         for (let rowNumber = fellowshipHeaders.headerRow + 1; rowNumber <= fellowshipSheet.rowCount; rowNumber += 1) {
           const row = fellowshipSheet.getRow(rowNumber);
           const emplId = normalizeKey(row.getCell(fellowshipHeaders.columns["EMPL ID"]));
@@ -927,7 +932,7 @@
             if (!rowsByKey.has(key)) rowsByKey.set(key, []);
             rowsByKey.get(key).push(rowNumber);
           }
-          indexes.set(amount, { sheet, rowsByKey });
+          indexes.set(amount, { sheet, rowsByKey, headerRow: headerInfo.headerRow });
         }
         return indexes;
       }
@@ -936,8 +941,29 @@
         const width = Math.max(sheet.columnCount, 1);
         const row = sheet.getRow(rowNumber);
         for (let colNumber = 1; colNumber <= width; colNumber += 1) {
-          row.getCell(colNumber).fill = fill;
+          row.getCell(colNumber).fill = cloneFill(fill);
         }
+      }
+
+      function cloneFill(fill) {
+        return JSON.parse(JSON.stringify(fill));
+      }
+
+      function clearManagedHighlights(sheet, headerRow) {
+        for (let rowNumber = headerRow + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
+          const row = sheet.getRow(rowNumber);
+          for (let colNumber = 1; colNumber <= Math.max(sheet.columnCount, 1); colNumber += 1) {
+            const cell = row.getCell(colNumber);
+            if (isManagedHighlight(cell.fill)) {
+              cell.fill = undefined;
+            }
+          }
+        }
+      }
+
+      function isManagedHighlight(fill) {
+        const color = fill?.fgColor?.argb;
+        return color === fills.red.fgColor.argb || color === fills.yellow.fgColor.argb;
       }
 
       function createSummaryWorkbook(records, amountToSheet) {
