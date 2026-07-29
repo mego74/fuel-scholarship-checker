@@ -738,8 +738,9 @@
         const masterIndexes = buildMasterIndexes(masterWorkbook, amountToSheet);
         const records = [];
         const masterRowsToHighlight = new Map([...amountToSheet.keys()].map((amount) => [amount, new Set()]));
+        const fellowshipHighlightWidth = lastMeaningfulColumn(fellowshipSheet, fellowshipHeaders.headerRow);
 
-        clearManagedHighlights(fellowshipSheet, fellowshipHeaders.headerRow);
+        clearAllDataFills(fellowshipSheet, fellowshipHeaders.headerRow);
         for (const index of masterIndexes.values()) {
           clearManagedHighlights(index.sheet, index.headerRow);
         }
@@ -760,7 +761,7 @@
           }
 
           if (status !== "Found") {
-            fillRow(fellowshipSheet, rowNumber, fills.red);
+            fillRow(fellowshipSheet, rowNumber, fills.red, fellowshipHighlightWidth);
           } else {
             const rowSet = masterRowsToHighlight.get(amount);
             masterRows.forEach((masterRow) => rowSet.add(masterRow));
@@ -937,8 +938,7 @@
         return indexes;
       }
 
-      function fillRow(sheet, rowNumber, fill) {
-        const width = Math.max(sheet.columnCount, 1);
+      function fillRow(sheet, rowNumber, fill, width = Math.max(sheet.columnCount, 1)) {
         const row = sheet.getRow(rowNumber);
         for (let colNumber = 1; colNumber <= width; colNumber += 1) {
           row.getCell(colNumber).fill = cloneFill(fill);
@@ -949,16 +949,50 @@
         return JSON.parse(JSON.stringify(fill));
       }
 
+      function lastMeaningfulColumn(sheet, headerRow) {
+        const row = sheet.getRow(headerRow);
+        let lastColumn = 1;
+        for (let colNumber = 1; colNumber <= sheet.columnCount; colNumber += 1) {
+          if (String(displayValue(row.getCell(colNumber)) || "").trim()) {
+            lastColumn = colNumber;
+          }
+        }
+        return lastColumn;
+      }
+
+      function clearAllDataFills(sheet, headerRow) {
+        const width = Math.max(sheet.columnCount, lastMeaningfulColumn(sheet, headerRow));
+        for (let rowNumber = headerRow + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
+          const row = sheet.getRow(rowNumber);
+          clearFill(row);
+          for (let colNumber = 1; colNumber <= width; colNumber += 1) {
+            clearFill(row.getCell(colNumber));
+          }
+        }
+      }
+
       function clearManagedHighlights(sheet, headerRow) {
         for (let rowNumber = headerRow + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
           const row = sheet.getRow(rowNumber);
+          if (isManagedHighlight(row.style?.fill)) {
+            clearFill(row);
+          }
           for (let colNumber = 1; colNumber <= Math.max(sheet.columnCount, 1); colNumber += 1) {
             const cell = row.getCell(colNumber);
             if (isManagedHighlight(cell.fill)) {
-              cell.fill = undefined;
+              clearFill(cell);
             }
           }
         }
+      }
+
+      function clearFill(target) {
+        if (!target) return;
+        if (target.style) {
+          target.style = { ...target.style };
+          delete target.style.fill;
+        }
+        target.fill = undefined;
       }
 
       function isManagedHighlight(fill) {
